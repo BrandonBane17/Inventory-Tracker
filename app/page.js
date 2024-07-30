@@ -1,7 +1,7 @@
 "use client"
 import {Box, Stack, Typography, Button, Modal, TextField } from "@mui/material"
 import {firestore} from '@/firebase'
-import { collection, query, doc, getDocs, setDoc, deleteDoc } from 'firebase/firestore'
+import { collection, query, doc, getDocs, setDoc, deleteDoc, getDoc, } from 'firebase/firestore'
 import { useEffect, useState } from "react"
 
 const modalStyle = {
@@ -26,7 +26,7 @@ export default function Home() {
       const docs = await getDocs(snapshot)
       const pantryList = []
       docs.forEach((doc) => {
-        pantryList.push(doc.id)
+        pantryList.push({name: doc.id, ...doc.data()})
       })
       console.log(pantryList)
       setPantry(pantryList)
@@ -36,16 +36,33 @@ export default function Home() {
     }, [])
 
   const addItem = async (item) => {
+    item = item.toLowerCase()
     console.log('Adding Item:', item)
     const docRef = doc(collection(firestore, 'pantry'), item)
-    await setDoc(docRef, {})
+    const docSnap = await getDoc(docRef)
+    if (docSnap.exists()) {
+      const {count} = docSnap.data()
+      await setDoc(docRef, {count: count + 1})
+    } 
+    else {
+      await setDoc(docRef, {count: 1})
+    }
     await updatePantry()
   }
 
   const removeItem = async (item) => {
     console.log('Removing Item:', item)
     const docRef = doc(collection(firestore, 'pantry'), item)
-    await deleteDoc(docRef)
+    const docSnap = await getDoc(docRef)
+    if (docSnap.exists()) {
+      const {count} = docSnap.data()
+      if (count === 1) {
+        await deleteDoc(docRef)
+      } 
+      else {
+        await setDoc(docRef, {count: count - 1})
+      }   
+    } 
     await updatePantry()
   }
   return <Box 
@@ -86,9 +103,9 @@ export default function Home() {
       </Box>
       <Stack width="800px" height="300px" spacing={2} overflow={'auto'} >
 
-      {pantry.map((i) => (
+      {pantry.map(({name, count}) => (
         <Box
-          key={i}
+          key={name}
           width="100%"
           minHeight="150px"
           bgcolor="#f0f0f0"
@@ -102,12 +119,15 @@ export default function Home() {
             color="#333"
             flexGrow={1}
             textAlign="center"
-            ml={15}
+            ml={20}
           >
-            {i.charAt(0).toUpperCase() + i.slice(1)}
+           { name.charAt(0).toUpperCase() + name.slice(1)}
+          </Typography>
+          <Typography>
+            Qty: {count}
           </Typography>
           <Box flexShrink={0} ml={3}>
-            <Button variant="contained" onClick={() => removeItem(i)}>
+            <Button variant="contained" onClick={() => removeItem(name)}>
               Remove
             </Button>
           </Box>
