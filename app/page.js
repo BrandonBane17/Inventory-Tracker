@@ -47,15 +47,15 @@ export default function Home() {
   }, []);
 
   const fetchImage = async (item) => {
-    console.log("Fetching image for:", item); // Log the item being fetched
+    console.log("Fetching image for:", item);
     try {
       const response = await axios.get(`https://api.unsplash.com/search/photos`, {
-        params: { query: `Singular whole ${item}`, per_page: 2 },
+        params: { query: `stock image of a tasty ${item}`, per_page: 1 },
         headers: {
           Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}`
         }
       });
-      console.log("Unsplash API response:", response.data); // Log the API response
+      console.log("Unsplash API response:", response.data);
       if (response.data.results.length > 1) {
         return response.data.results[1].urls.small;
       } else if (response.data.results.length > 0) {
@@ -64,7 +64,7 @@ export default function Home() {
     } catch (error) {
       console.error("Error fetching image from Unsplash:", error);
     }
-    return null; // Return null if no image found or error occurred
+    return null;
   };
 
   const addItem = async (item) => {
@@ -87,12 +87,23 @@ export default function Home() {
     const docRef = doc(collection(firestore, 'pantry'), item);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
-      const { count } = docSnap.data();
+      const { count, image } = docSnap.data();
       if (count === 1) {
         await deleteDoc(docRef);
       } else {
-        await setDoc(docRef, { count: count - 1 });
+        await setDoc(docRef, { count: count - 1, image: image });
       }
+    }
+    await updatePantry();
+  };
+
+  const increaseItemCount = async (item) => {
+    console.log('Increasing count for:', item);
+    const docRef = doc(collection(firestore, 'pantry'), item);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      const { count, image } = docSnap.data();
+      await setDoc(docRef, { count: count + 1, image: image });
     }
     await updatePantry();
   };
@@ -138,7 +149,7 @@ export default function Home() {
                 setItemName('');
                 handleClose();
               }}
-              sx={{ bgcolor: "#4caf50", '&:hover': { bgcolor: "#388e3c" } }} 
+              sx={{ bgcolor: "#4caf50", '&:hover': { bgcolor: "#388e3c" } }}
             >
               Add
             </Button>
@@ -211,8 +222,11 @@ export default function Home() {
                 <Typography variant="body1" color="#555" mx={2}>
                   Qty: {count}
                 </Typography>
-                <IconButton color="secondary" onClick={() => removeItem(name)}>
+                <IconButton sx={{ color: 'red' }} onClick={() => removeItem(name)}>
                   <Remove />
+                </IconButton>
+                <IconButton sx={{ color: 'green' }} onClick={() => increaseItemCount(name)}>
+                  <Add />
                 </IconButton>
               </Box>
             </Box>
