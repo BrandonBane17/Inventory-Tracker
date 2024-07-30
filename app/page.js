@@ -4,6 +4,13 @@ import { Add, Remove } from '@mui/icons-material';
 import { firestore } from '@/firebase'
 import { collection, query, doc, getDocs, setDoc, deleteDoc, getDoc } from 'firebase/firestore'
 import { useEffect, useState } from "react"
+import axios from 'axios'
+
+// Access the environment variable
+const UNSPLASH_ACCESS_KEY = process.env.NEXT_PUBLIC_UNSPLASH_API_TOKEN;
+
+// Log the API key to ensure it's being read correctly
+console.log("Unsplash API Key:", UNSPLASH_ACCESS_KEY);
 
 const modalStyle = {
   position: 'absolute',
@@ -39,16 +46,38 @@ export default function Home() {
     updatePantry();
   }, []);
 
+  const fetchImage = async (item) => {
+    console.log("Fetching image for:", item); // Log the item being fetched
+    try {
+      const response = await axios.get(`https://api.unsplash.com/search/photos`, {
+        params: { query: `Singular whole ${item}`, per_page: 2 },
+        headers: {
+          Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}`
+        }
+      });
+      console.log("Unsplash API response:", response.data); // Log the API response
+      if (response.data.results.length > 1) {
+        return response.data.results[1].urls.small;
+      } else if (response.data.results.length > 0) {
+        return response.data.results[0].urls.small;
+      }
+    } catch (error) {
+      console.error("Error fetching image from Unsplash:", error);
+    }
+    return null; // Return null if no image found or error occurred
+  };
+
   const addItem = async (item) => {
     item = item.toLowerCase();
     console.log('Adding Item:', item);
+    const image = await fetchImage(item);
     const docRef = doc(collection(firestore, 'pantry'), item);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const { count } = docSnap.data();
-      await setDoc(docRef, { count: count + 1 });
+      await setDoc(docRef, { count: count + 1, image: image });
     } else {
-      await setDoc(docRef, { count: 1 });
+      await setDoc(docRef, { count: 1, image: image });
     }
     await updatePantry();
   };
@@ -109,13 +138,13 @@ export default function Home() {
                 setItemName('');
                 handleClose();
               }}
+              sx={{ bgcolor: "#4caf50", '&:hover': { bgcolor: "#388e3c" } }} 
             >
               Add
             </Button>
           </Stack>
         </Box>
       </Modal>
-
       <Box
         width="800px"
         mt={4}
@@ -132,11 +161,12 @@ export default function Home() {
           justifyContent="space-between"
           alignItems="center"
           p={2}
+          position="relative"
         >
-          <Typography variant="h2" color="white" textAlign="center" ml={20}>
+          <Typography variant="h2" color="white" textAlign="center" ml={22}>
             Pantry Items
           </Typography>
-          <Box position="absolute" right={220} style={{ transform: 'translateX(-50%)' }}>
+          <Box position="absolute" right={16}>
             <Button
               variant="contained"
               startIcon={<Add />}
@@ -147,6 +177,7 @@ export default function Home() {
             </Button>
           </Box>
         </Box>
+
         <Stack
           width="100%"
           height="300px"
@@ -155,7 +186,7 @@ export default function Home() {
           p={2}
           bgcolor="#fafafa"
         >
-          {pantry.map(({ name, count }) => (
+          {pantry.map(({ name, count, image }) => (
             <Box
               key={name}
               width="100%"
@@ -168,16 +199,15 @@ export default function Home() {
               borderRadius={2}
               boxShadow={1}
             >
-              <Typography
-                variant="h5"
-                color="#333"
-                textAlign="center"
-                flexGrow={1}
-                ml={2}
-              >
-                {name.charAt(0).toUpperCase() + name.slice(1)}
-              </Typography>
-              <Box display="flex" alignItems="center">
+              <Box display="flex" alignItems="center" justifyContent="center" flexGrow={1} ml={2}>
+                {image && (
+                  <img src={image} alt={name} style={{ width: 50, height: 50, marginRight: 16, borderRadius: '50%' }} />
+                )}
+                <Typography variant="h5" color="#333" textAlign="center">
+                  {name.charAt(0).toUpperCase() + name.slice(1)}
+                </Typography>
+              </Box>
+              <Box display="flex" alignItems="center" justifyContent="center">
                 <Typography variant="body1" color="#555" mx={2}>
                   Qty: {count}
                 </Typography>
