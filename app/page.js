@@ -9,9 +9,6 @@ import axios from 'axios'
 // Access the environment variable
 const UNSPLASH_ACCESS_KEY = process.env.NEXT_PUBLIC_UNSPLASH_API_TOKEN;
 
-// Log the API key to ensure it's being read correctly
-console.log("Unsplash API Key:", UNSPLASH_ACCESS_KEY);
-
 const modalStyle = {
   position: 'absolute',
   top: '50%',
