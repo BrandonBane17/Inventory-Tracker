@@ -14,7 +14,8 @@ const modalStyle = {
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
-  width: 400,
+  width: '90%', // Adjusted for mobile
+  maxWidth: 400,
   bgcolor: 'background.paper',
   boxShadow: 24,
   p: 4,
@@ -115,9 +116,9 @@ export default function Home() {
       alignItems="center"
       gap={2}
       sx={{
-        backgroundColor: '#e0f7e0',  // Lighter green background
+        backgroundColor: '#e0f7e0',
+        p: 2, // Adjusted padding for mobile
       }}
-      p={4}
     >
       <Modal
         open={open}
@@ -154,7 +155,7 @@ export default function Home() {
         </Box>
       </Modal>
       <Box
-        width="800px"
+        width={{ xs: '100%', sm: '800px' }} // Responsive width
         mt={4}
         borderRadius={2}
         overflow="hidden"
@@ -169,12 +170,20 @@ export default function Home() {
           justifyContent="space-between"
           alignItems="center"
           p={2}
-          position="relative"
         >
-          <Typography variant="h2" color="white" display = "flex" justifyContent={"center"} alignItems={"center"} textAlign="center" ml ={28}>
+          <Typography 
+            variant="h4" 
+            color="white" 
+            display="flex" 
+            justifyContent="center" 
+            alignItems="center" 
+            textAlign="center"
+            flexGrow={1} // Make the text take up available space
+            style={{ overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }} // Prevent text overflow
+          >
             Inventory
           </Typography>
-          <Box position="absolute" right={16}>
+          <Box ml={2}> {/* Add margin to prevent overlap */}
             <Button
               variant="contained"
               startIcon={<Add />}
@@ -186,9 +195,10 @@ export default function Home() {
           </Box>
         </Box>
 
+
         <Stack
           width="100%"
-          height="300px"
+          height={{ xs: '300px', sm: '400px' }} // Responsive height
           spacing={2}
           overflow="auto"
           p={2}
@@ -206,12 +216,16 @@ export default function Home() {
               p={2}
               borderRadius={2}
               boxShadow={1}
+              sx={{
+                flexDirection: { xs: 'column', sm: 'row' }, // Stack vertically on mobile
+                textAlign: { xs: 'center', sm: 'left' },
+              }}
             >
-              <Box display="flex" alignItems="center" justifyContent="center" flexGrow={1} ml={2}>
+              <Box display="flex" alignItems="center" justifyContent="center" flexGrow={1} mb={{ xs: 1, sm: 0 }} ml={2}>
                 {image && (
                   <img src={image} alt={name} style={{ width: 50, height: 50, marginRight: 16, borderRadius: '50%' }} />
                 )}
-                <Typography variant="h5" color="#333" textAlign="center">
+                <Typography variant="h5" color="#333">
                   {name.charAt(0).toUpperCase() + name.slice(1)}
                 </Typography>
               </Box>
