@@ -25,25 +25,25 @@ const modalStyle = {
 };
 
 export default function Home() {
-  const [pantry, setPantry] = useState([]);
+  const [inventory, setInventory] = useState([]);
   const [open, setOpen] = useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
   const [itemName, setItemName] = useState('');
 
-  const updatePantry = async () => {
-    const snapshot = query(collection(firestore, 'pantry'));
+  const updateinventory = async () => {
+    const snapshot = query(collection(firestore, 'inventory'));
     const docs = await getDocs(snapshot);
-    const pantryList = [];
+    const inventoryList = [];
     docs.forEach((doc) => {
-      pantryList.push({ name: doc.id, ...doc.data() });
+      inventoryList.push({ name: doc.id, ...doc.data() });
     });
-    console.log(pantryList);
-    setPantry(pantryList);
+    console.log(inventoryList);
+    setInventory(inventoryList);
   };
 
   useEffect(() => {
-    updatePantry();
+    updateinventory();
   }, []);
 
   const fetchImage = async (item) => {
@@ -71,7 +71,7 @@ export default function Home() {
     item = item.toLowerCase();
     console.log('Adding Item:', item);
     const image = await fetchImage(item);
-    const docRef = doc(collection(firestore, 'pantry'), item);
+    const docRef = doc(collection(firestore, 'inventory'), item);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const { count } = docSnap.data();
@@ -79,12 +79,12 @@ export default function Home() {
     } else {
       await setDoc(docRef, { count: 1, image: image });
     }
-    await updatePantry();
+    await updateinventory();
   };
 
   const removeItem = async (item) => {
     console.log('Removing Item:', item);
-    const docRef = doc(collection(firestore, 'pantry'), item);
+    const docRef = doc(collection(firestore, 'inventory'), item);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const { count, image } = docSnap.data();
@@ -94,18 +94,18 @@ export default function Home() {
         await setDoc(docRef, { count: count - 1, image: image });
       }
     }
-    await updatePantry();
+    await updateinventory();
   };
 
   const increaseItemCount = async (item) => {
     console.log('Increasing count for:', item);
-    const docRef = doc(collection(firestore, 'pantry'), item);
+    const docRef = doc(collection(firestore, 'inventory'), item);
     const docSnap = await getDoc(docRef);
     if (docSnap.exists()) {
       const { count, image } = docSnap.data();
       await setDoc(docRef, { count: count + 1, image: image });
     }
-    await updatePantry();
+    await updateinventory();
   };
 
   return (
@@ -175,7 +175,7 @@ export default function Home() {
           position="relative"
         >
           <Typography variant="h2" color="white" textAlign="center" ml={22}>
-            Pantry Items
+            inventory Items
           </Typography>
           <Box position="absolute" right={16}>
             <Button
@@ -197,7 +197,7 @@ export default function Home() {
           p={2}
           bgcolor="#fafafa"
         >
-          {pantry.map(({ name, count, image }) => (
+          {inventory.map(({ name, count, image }) => (
             <Box
               key={name}
               width="100%"
