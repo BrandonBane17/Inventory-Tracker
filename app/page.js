@@ -174,8 +174,8 @@ export default function Home() {
           p={2}
           position="relative"
         >
-          <Typography variant="h2" color="white" textAlign="center" ml={22}>
-            inventory Items
+          <Typography variant="h2" color="white" display = "flex" justifyContent={"center"} alignItems={"center"} textAlign="center" ml ={28}>
+            Inventory
           </Typography>
           <Box position="absolute" right={16}>
             <Button
