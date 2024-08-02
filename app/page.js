@@ -34,13 +34,11 @@ export default function Home() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [itemName, setItemName] = useState('');
-  const [scale, setScale] = useState(1);
-  
-  const handleResize = (e, data) => {
-    const newScale = Math.min(data.size.width / 420, data.size.height / 465);
-    setScale(newScale);
-  };
-  
+  const inventoryRef = useRef(null); // Reference to the inventory container
+  const [isDragging, setIsDragging] = useState(false);
+  const startScrollPosition = useRef(0);
+  const startMousePosition = useRef(0);
+
   useEffect(() => {
     const fetchInventory = async () => {
       const inventoryList = await updateInventory();
@@ -80,7 +78,7 @@ export default function Home() {
 
   const handleCameraOpen = () => {
     setCameraOpen(true);
-    navigator.mediaDevices.getUserMedia({ video: true })
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }) // Use the back camera if available
       .then(stream => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -90,16 +88,7 @@ export default function Home() {
         console.error("Error accessing camera: ", err);
       });
   };
-
-  const handleCameraClose = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject;
-      const tracks = stream.getTracks();
-      tracks.forEach(track => track.stop());
-    }
-    setCameraOpen(false);
-  };
-
+  
   const handleCapture = () => {
     const canvas = canvasRef.current;
     const video = videoRef.current;
@@ -110,6 +99,32 @@ export default function Home() {
     const imageData = canvas.toDataURL('image/png');
     setCapturedImage(imageData);
     handleCameraClose();
+  };
+  
+  const handleCameraClose = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject;
+      const tracks = stream.getTracks();
+      tracks.forEach(track => track.stop());
+    }
+    setCameraOpen(false);
+  };
+
+  const handleTouchStart = (e) => {
+    setIsDragging(true);
+    startScrollPosition.current = inventoryRef.current.scrollTop;
+    startMousePosition.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e) => {
+    if (isDragging) {
+      const delta = startMousePosition.current - e.touches[0].clientY;
+      inventoryRef.current.scrollTop = startScrollPosition.current + delta;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
   };
 
   return (
@@ -206,9 +221,9 @@ export default function Home() {
       )}
 
       {/* Draggable and Resizable Inventory Box */}
-      <Draggable cancel=".react-resizable-handle">
+      <Draggable handle=".drag-handle" cancel=".no-drag, .MuiButtonBase-root, .MuiInputBase-root">
         <ResizableBox
-          width={420}
+          width={360}
           height={465}
           minConstraints={[320, 220]}
           maxConstraints={[1200, 800]}
@@ -225,7 +240,6 @@ export default function Home() {
             bgcolor="white"
             display="flex"
             flexDirection="column"
-            sx={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}  // Apply scaling
           >
             <Box
               width="100%"
@@ -293,6 +307,7 @@ export default function Home() {
               overflow="auto"
               p={2}
               bgcolor="#fafafa"
+              className="no-drag" // Add this class to prevent dragging on stack
             >
               {filteredInventory.length > 0 ? (
                 filteredInventory.map(({ name, count }) => (
@@ -340,6 +355,25 @@ export default function Home() {
                 </Typography>
               )}
             </Stack>
+            <Box
+              className="drag-handle"
+              sx={{
+                position: 'absolute',
+                bottom: 2,
+                left: 2,
+                width: 20,
+                height: 20,
+                backgroundColor: '#4caf50',
+                borderRadius: '50%',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                cursor: 'move',
+                zIndex: 10,
+              }}
+            >
+              <Box sx={{ width: '70%', height: '70%', backgroundColor: '#fff', borderRadius: '50%' }} />
+            </Box>
           </Box>
         </ResizableBox>
       </Draggable>
