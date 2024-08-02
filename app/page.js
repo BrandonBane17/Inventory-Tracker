@@ -78,14 +78,32 @@ export default function Home() {
 
   const handleCameraOpen = () => {
     setCameraOpen(true);
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }) // Use the back camera if available
+    navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { exact: "environment" } // Try to use the back camera
+      }
+    })
       .then(stream => {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.play(); // Explicitly play the stream
         }
       })
       .catch(err => {
         console.error("Error accessing camera: ", err);
+        // Fallback to the front camera if the environment (back) camera is not available
+        return navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user" }
+        });
+      })
+      .then(stream => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play(); // Explicitly play the stream
+        }
+      })
+      .catch(err => {
+        console.error("Error accessing the front camera: ", err);
       });
   };
   
@@ -100,6 +118,7 @@ export default function Home() {
     setCapturedImage(imageData);
     handleCameraClose();
   };
+  
   
   const handleCameraClose = () => {
     if (videoRef.current && videoRef.current.srcObject) {
