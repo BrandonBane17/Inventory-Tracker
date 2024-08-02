@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Box, Stack, Typography, Button, Modal, TextField, IconButton } from "@mui/material";
-import { Add, Remove, Search } from "@mui/icons-material";
+import { Add, Remove, Search, CameraAlt } from "@mui/icons-material";
 import { ResizableBox } from "react-resizable";
 import Draggable from "react-draggable";
 import { updateInventory, addItem, removeItem, increaseItemCount } from "./inventoryUtils";
@@ -26,11 +26,21 @@ export default function Home() {
   const [inventory, setInventory] = useState([]);
   const [filteredInventory, setFilteredInventory] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [open, setOpen] = useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
+  const [open, setOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [capturedImage, setCapturedImage] = useState(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
   const [itemName, setItemName] = useState('');
-
+  const [scale, setScale] = useState(1);
+  
+  const handleResize = (e, data) => {
+    const newScale = Math.min(data.size.width / 420, data.size.height / 465);
+    setScale(newScale);
+  };
+  
   useEffect(() => {
     const fetchInventory = async () => {
       const inventoryList = await updateInventory();
@@ -68,6 +78,40 @@ export default function Home() {
     setFilteredInventory(inventoryList);
   };
 
+  const handleCameraOpen = () => {
+    setCameraOpen(true);
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      })
+      .catch(err => {
+        console.error("Error accessing camera: ", err);
+      });
+  };
+
+  const handleCameraClose = () => {
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject;
+      const tracks = stream.getTracks();
+      tracks.forEach(track => track.stop());
+    }
+    setCameraOpen(false);
+  };
+
+  const handleCapture = () => {
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const context = canvas.getContext('2d');
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const imageData = canvas.toDataURL('image/png');
+    setCapturedImage(imageData);
+    handleCameraClose();
+  };
+
   return (
     <Box
       width="100vw"
@@ -82,6 +126,16 @@ export default function Home() {
         p: 2, // Adjusted padding for mobile
       }}
     >
+      <Box sx={{ width: '100%', textAlign: 'center', mt: 2 }}>
+        <Typography 
+          variant="h3"
+          color="#4caf50"
+        >
+          Inventory Tracker
+        </Typography>
+      </Box>
+
+      {/* Add Item Modal */}
       <Modal
         open={open}
         onClose={handleClose}
@@ -117,26 +171,61 @@ export default function Home() {
         </Box>
       </Modal>
 
+      {/* Camera Modal */}
+      <Modal
+        open={cameraOpen}
+        onClose={handleCameraClose}
+        aria-labelledby="camera-modal-title"
+        aria-describedby="camera-modal-description"
+      >
+        <Box sx={{ ...modalStyle, width: '100%', maxWidth: 600}}>
+          <Typography id="camera-modal-title" variant="h6" component="h2" gutterBottom>
+            Take a Picture
+          </Typography>
+          <video ref={videoRef} autoPlay style={{ width: '100%' }} />
+          <Stack direction="row" justifyContent="center" spacing={2} mt={2}>
+            <Button variant="contained" onClick={handleCapture} 
+              sx={{ bgcolor: "#4caf50", '&:hover': { bgcolor: "#388e3c" } }}>
+                Capture
+              </Button>
+            <Button variant="outlined" onClick={handleCameraClose} sx={{
+              color: "#4caf50", 
+              borderColor: "#4caf50",'&:hover': {borderColor: "#388e3c", color: "#388e3c", backgroundColor: "transparent",},
+                }}>Close</Button>
+          </Stack>
+          <canvas ref={canvasRef} style={{ display: 'none' }} />
+        </Box>
+      </Modal>
+
+      {/* Display Captured Image */}
+      {capturedImage && (
+        <Box mt={2}>
+          <Typography variant="h6" color="#4caf50">Captured Image:</Typography>
+          <img src={capturedImage} alt="Captured" style={{ width: '100%', maxWidth: 200 }} />
+        </Box>
+      )}
+
+      {/* Draggable and Resizable Inventory Box */}
       <Draggable cancel=".react-resizable-handle">
         <ResizableBox
-          width={800}
-          height={500}
-          minConstraints={[300, 200]}
+          width={420}
+          height={465}
+          minConstraints={[320, 220]}
           maxConstraints={[1200, 800]}
           resizeHandles={['se']}
           handleSize={[20, 20]}
-          className="custom-resizable-box" // Apply your custom class here
+          className="custom-resizable-box"
         >
           <Box
             width="100%"
             height="100%"
-            mt={4}
             borderRadius={2}
             overflow="hidden"
             boxShadow={3}
             bgcolor="white"
             display="flex"
             flexDirection="column"
+            sx={{ transform: `scale(${scale})`, transformOrigin: 'top left' }}  // Apply scaling
           >
             <Box
               width="100%"
@@ -145,16 +234,20 @@ export default function Home() {
               display="flex"
               alignItems="center"
               px={2}
+              flexWrap="nowrap" // Prevent wrapping
             >
-              <Typography 
-                variant="h4" 
-                color="white"
-                flexGrow={1}  // Use flexGrow to let this take up remaining space
-              >
-                Inventory
-              </Typography>
+              <Box display="flex" alignItems="center" mx={1}>
+                <Button
+                  variant="contained"
+                  startIcon={<CameraAlt />}
+                  onClick={handleCameraOpen}
+                  sx={{ bgcolor: "#4caf50", '&:hover': { bgcolor: "#388e3c" }, minWidth: '100px' }}
+                >
+                  Camera
+                </Button>
+              </Box>
 
-              <Box width="40%" mx={2}>  {/* Centered Search Bar */}
+              <Box width="30%" mx={1}>  {/* Centered Search Bar */}
                 <TextField
                   variant="standard"
                   fullWidth
@@ -165,7 +258,7 @@ export default function Home() {
                     startAdornment: (
                       <Search sx={{ color: 'white', mr: 1 }} />
                     ),
-                    disableUnderline: false
+                    disableUnderline: false // Keep the underline
                   }}
                   sx={{
                     '& .MuiInput-root': {
@@ -177,15 +270,16 @@ export default function Home() {
                     '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
                       borderBottomColor: 'white',
                     },
+                    flexShrink: 1  // Allow it to shrink if needed
                   }}
                 />
               </Box>
 
-              <Box>
+              <Box display="flex" alignItems="center" mx={1}>
                 <Button
                   variant="contained"
                   onClick={handleOpen}
-                  sx={{ bgcolor: "#4caf50", '&:hover': { bgcolor: "#388e3c" } }}
+                  sx={{ bgcolor: "#4caf50", '&:hover': { bgcolor: "#388e3c" }, minWidth: '100px' }}
                 >
                   Add Item
                 </Button>
@@ -194,7 +288,7 @@ export default function Home() {
 
             <Stack
               width="100%"
-              height="calc(100% - 100px)"
+              height="calc(100% - 100px)" // Adjust height to fill remaining space
               spacing={2}
               overflow="auto"
               p={2}
