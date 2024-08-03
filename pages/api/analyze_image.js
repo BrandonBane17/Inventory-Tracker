@@ -6,9 +6,8 @@ const openai = new OpenAI({
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
+    const { imageData } = req.body;
     try {
-      const { imageData } = req.body;
-
       const response = await openai.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
