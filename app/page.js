@@ -77,42 +77,47 @@ export default function Home() {
   const handleCameraOpen = () => {
     setCameraOpen(true);
 
-    // Try to access the environment (back) camera if available
-    const constraints = {
-        video: {
-            facingMode: 'environment',
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-        },
-        audio: false
-    };
-
-    navigator.mediaDevices.getUserMedia(constraints)
-        .then(stream => {
-            if (videoRef.current) {
-                videoRef.current.srcObject = stream;
-                videoRef.current.play(); // Play the video stream
-            }
-        })
-        .catch(err => {
-            console.error("Error accessing camera: ", err);
-            // Fallback to front camera if environment camera is not available
-            navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: false
-            })
-            .then(stream => {
-                if (videoRef.current) {
-                    videoRef.current.srcObject = stream;
-                    videoRef.current.play(); // Play the video stream
-                }
-            })
-            .catch(err => {
-                console.error("Error accessing the front camera: ", err);
-                alert("Camera access failed: " + err.message);
-            });
+    // Try to access the back camera first
+    navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { exact: "environment" } }
+    })
+    .then(stream => {
+        if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            
+            // Listen for the video element to be ready before playing
+            videoRef.current.onloadeddata = () => {
+                videoRef.current.play().catch(error => {
+                    console.error("Error playing video:", error);
+                });
+            };
+        }
+    })
+    .catch(err => {
+        console.error("Error accessing the back camera: ", err);
+        
+        //Fallback to the front camera or any available camera
+        return navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "user" }
         });
+    })
+    .then(stream => {
+        if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            videoRef.current.onloadeddata = () => {
+                videoRef.current.play().catch(error => {
+                    console.error("Error playing video:", error);
+                });
+            };
+        }
+    })
+    .catch(err => {
+        console.error("Final fallback error: ", err);
+        alert("Unable to access camera.");
+    });
 };
+
+
   
 const handleCapture = async () => {
   const canvas = canvasRef.current;
