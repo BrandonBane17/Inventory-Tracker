@@ -5,30 +5,24 @@ import { Box, Stack, Typography, Button, Modal, TextField, IconButton } from "@m
 import { Add, Remove, Search, CameraAlt } from "@mui/icons-material";
 import { ResizableBox } from "react-resizable";
 import Draggable from "react-draggable";
-import axios from 'axios';  // Add axios import
+import axios from 'axios';
 import { updateInventory, addItem, removeItem, increaseItemCount } from "./inventoryUtils";
 import "react-resizable/css/styles.css"; 
 import './globals.css';
 import * as dotenv from 'dotenv';
 
-const OpenAI = require('openai');
-dotenv.config();
-console.log("API Key:", process.env.OPENAI_API_KEY);
 const modalStyle = {
   position: 'absolute',
   top: '50%',
   left: '50%',
   transform: 'translate(-50%, -50%)',
-  width: '90%', // Adjusted for mobile
+  width: '90%',
   maxWidth: 400,
   bgcolor: 'background.paper',
   boxShadow: 24,
   p: 4,
   borderRadius: 2,
 };
-
-const openai = new OpenAI({apiKey: [process.env.OPENAI_API_KEY], dangerouslyAllowBrowser: true});
-
 export default function Home() {
   const [inventory, setInventory] = useState([]);
   const [filteredInventory, setFilteredInventory] = useState([]);
@@ -102,7 +96,7 @@ export default function Home() {
     .catch(err => {
         console.error("Error accessing the back camera: ", err);
         
-        // Fallback to the front camera or any available camera
+        //Fallback to the front camera or any available camera
         return navigator.mediaDevices.getUserMedia({
             video: { facingMode: "user" }
         });
@@ -110,8 +104,6 @@ export default function Home() {
     .then(stream => {
         if (videoRef.current) {
             videoRef.current.srcObject = stream;
-
-            // Listen for the video element to be ready before playing
             videoRef.current.onloadeddata = () => {
                 videoRef.current.play().catch(error => {
                     console.error("Error playing video:", error);
@@ -137,53 +129,12 @@ const handleCapture = async () => {
   const imageData = canvas.toDataURL('image/png');
   setCapturedImage(imageData);
 
-  // Save the image to the server
   try {
-    await axios.post('http://localhost:5000/save-image', { imageBase64: imageData });
-
-    // Send the image to OpenAI for analysis
-    const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini", // or use "gpt-4" depending on the exact model available
-        messages: [
-          {
-            role: "user",
-            content: [
-              { "type": "text", "text": "What is the main object in the image? Be as simple as possible and only say the answer, no a or an before just the actual subject of the image" },
-              {
-                "type": "image_url",
-                "image_url": {
-                  "url": imageData,
-                  "detail": "low"
-                },
-              },
-            ],
-          }
-        ],
-        max_tokens: 10,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer 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`, // Assuming the key is correctly loaded
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-
-    console.log("OpenAI API response:", response);
-
-    if (response && response.choices && response.choices.length > 0) {
-      // Use the first choice's message content
-      const result = response.choices[0].message.content;
-      console.log("Result from API:", result);
-
-      // Add the result as an item to the inventory
+      const response = await axios.post('/api/analyze_image', { imageData });
+      const result = response.data.result;
       handleAddItem(result);
-    } else {
-      console.error("Unexpected API response structure:", response);
-    }
-
   } catch (error) {
-    console.error("Error analyzing the image: ", error);
+      console.error("Error analyzing the image: ", error);
   }
 
   handleCameraClose();
@@ -221,7 +172,6 @@ const handleCapture = async () => {
         </Typography>
       </Box>
 
-      {/* Add Item Modal */}
       <Modal
         open={open}
         onClose={handleClose}
@@ -257,7 +207,6 @@ const handleCapture = async () => {
         </Box>
       </Modal>
 
-      {/* Camera Modal */}
       <Modal
         open={cameraOpen}
         onClose={handleCameraClose}
@@ -283,7 +232,6 @@ const handleCapture = async () => {
         </Box>
       </Modal>
 
-      {/* Display Captured Image */}
       {capturedImage && (
         <Box mt={2}>
           <Typography variant="h6" color="#4caf50">Captured Image:</Typography>
@@ -291,7 +239,6 @@ const handleCapture = async () => {
         </Box>
       )}
 
-      {/* Draggable and Resizable Inventory Box */}
       <Draggable handle=".drag-handle" cancel=".no-drag, .MuiButtonBase-root, .MuiInputBase-root">
         <ResizableBox
           width={360}
@@ -319,7 +266,7 @@ const handleCapture = async () => {
               display="flex"
               alignItems="center"
               px={2}
-              flexWrap="nowrap" // Prevent wrapping
+              flexWrap="nowrap"
             >
               <Box display="flex" alignItems="center" mx={0}>
                 <Button
@@ -333,7 +280,7 @@ const handleCapture = async () => {
                 </Button>
               </Box>
 
-              <Box width="30%" mx={1}>  {/* Centered Search Bar */}
+              <Box width="30%" mx={1}>
                 <TextField
                   variant="standard"
                   fullWidth
@@ -344,7 +291,7 @@ const handleCapture = async () => {
                     startAdornment: (
                       <Search sx={{ color: 'white', mr: 1 }} />
                     ),
-                    disableUnderline: false // Keep the underline
+                    disableUnderline: false
                   }}
                   sx={{
                     '& .MuiInput-root': {
@@ -356,7 +303,7 @@ const handleCapture = async () => {
                     '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
                       borderBottomColor: 'white',
                     },
-                    flexShrink: 1,  // Allow it to shrink if needed
+                    flexShrink: 1,
                     minWidth: '100px',
                   }}
                 />
@@ -375,12 +322,12 @@ const handleCapture = async () => {
 
             <Stack
               width="100%"
-              height="calc(100% - 100px)" // Adjust height to fill remaining space
+              height="calc(100% - 100px)"
               spacing={2}
               overflow="auto"
               p={2}
               bgcolor="#fafafa"
-              className="no-drag" // Add this class to prevent dragging on stack
+              className="no-drag"
             >
               {filteredInventory.length > 0 ? (
                 filteredInventory.map(({ name, count }) => (
