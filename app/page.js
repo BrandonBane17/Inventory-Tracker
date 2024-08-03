@@ -5,10 +5,15 @@ import { Box, Stack, Typography, Button, Modal, TextField, IconButton } from "@m
 import { Add, Remove, Search, CameraAlt } from "@mui/icons-material";
 import { ResizableBox } from "react-resizable";
 import Draggable from "react-draggable";
+import axios from 'axios';  // Add axios import
 import { updateInventory, addItem, removeItem, increaseItemCount } from "./inventoryUtils";
 import "react-resizable/css/styles.css"; 
 import './globals.css';
+import * as dotenv from 'dotenv';
 
+const OpenAI = require('openai');
+dotenv.config();
+console.log("API Key:", process.env.OPENAI_API_KEY);
 const modalStyle = {
   position: 'absolute',
   top: '50%',
@@ -22,6 +27,8 @@ const modalStyle = {
   borderRadius: 2,
 };
 
+const openai = new OpenAI({apiKey: [process.env.OPENAI_API_KEY], dangerouslyAllowBrowser: true});
+
 export default function Home() {
   const [inventory, setInventory] = useState([]);
   const [filteredInventory, setFilteredInventory] = useState([]);
@@ -34,10 +41,7 @@ export default function Home() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [itemName, setItemName] = useState('');
-  const inventoryRef = useRef(null); // Reference to the inventory container
-  const [isDragging, setIsDragging] = useState(false);
-  const startScrollPosition = useRef(0);
-  const startMousePosition = useRef(0);
+
 
   useEffect(() => {
     const fetchInventory = async () => {
@@ -78,48 +82,113 @@ export default function Home() {
 
   const handleCameraOpen = () => {
     setCameraOpen(true);
+
+    // Try to access the back camera first
     navigator.mediaDevices.getUserMedia({
-      video: {
-        facingMode: { exact: "environment" } // Try to use the back camera
-      }
+        video: { facingMode: { exact: "environment" } }
     })
-      .then(stream => {
+    .then(stream => {
         if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play(); // Explicitly play the stream
+            videoRef.current.srcObject = stream;
+            
+            // Listen for the video element to be ready before playing
+            videoRef.current.onloadeddata = () => {
+                videoRef.current.play().catch(error => {
+                    console.error("Error playing video:", error);
+                });
+            };
         }
-      })
-      .catch(err => {
-        console.error("Error accessing camera: ", err);
-        // Fallback to the front camera if the environment (back) camera is not available
+    })
+    .catch(err => {
+        console.error("Error accessing the back camera: ", err);
+        
+        // Fallback to the front camera or any available camera
         return navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user" }
+            video: { facingMode: "user" }
         });
-      })
-      .then(stream => {
+    })
+    .then(stream => {
         if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          videoRef.current.play(); // Explicitly play the stream
+            videoRef.current.srcObject = stream;
+
+            // Listen for the video element to be ready before playing
+            videoRef.current.onloadeddata = () => {
+                videoRef.current.play().catch(error => {
+                    console.error("Error playing video:", error);
+                });
+            };
         }
-      })
-      .catch(err => {
-        console.error("Error accessing the front camera: ", err);
-      });
-  };
+    })
+    .catch(err => {
+        console.error("Final fallback error: ", err);
+        alert("Unable to access camera.");
+    });
+};
+
+
   
-  const handleCapture = () => {
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const context = canvas.getContext('2d');
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const imageData = canvas.toDataURL('image/png');
-    setCapturedImage(imageData);
-    handleCameraClose();
-  };
-  
-  
+const handleCapture = async () => {
+  const canvas = canvasRef.current;
+  const video = videoRef.current;
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const context = canvas.getContext('2d');
+  context.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const imageData = canvas.toDataURL('image/png');
+  setCapturedImage(imageData);
+
+  // Save the image to the server
+  try {
+    await axios.post('http://localhost:5000/save-image', { imageBase64: imageData });
+
+    // Send the image to OpenAI for analysis
+    const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini", // or use "gpt-4" depending on the exact model available
+        messages: [
+          {
+            role: "user",
+            content: [
+              { "type": "text", "text": "What is the main object in the image? Be as simple as possible and only say the answer, no a or an before just the actual subject of the image" },
+              {
+                "type": "image_url",
+                "image_url": {
+                  "url": imageData,
+                  "detail": "low"
+                },
+              },
+            ],
+          }
+        ],
+        max_tokens: 10,
+      },
+      {
+        headers: {
+          'Authorization': `Bearer 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`, // Assuming the key is correctly loaded
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log("OpenAI API response:", response);
+
+    if (response && response.choices && response.choices.length > 0) {
+      // Use the first choice's message content
+      const result = response.choices[0].message.content;
+      console.log("Result from API:", result);
+
+      // Add the result as an item to the inventory
+      handleAddItem(result);
+    } else {
+      console.error("Unexpected API response structure:", response);
+    }
+
+  } catch (error) {
+    console.error("Error analyzing the image: ", error);
+  }
+
+  handleCameraClose();
+};
+
   const handleCameraClose = () => {
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject;
@@ -127,23 +196,6 @@ export default function Home() {
       tracks.forEach(track => track.stop());
     }
     setCameraOpen(false);
-  };
-
-  const handleTouchStart = (e) => {
-    setIsDragging(true);
-    startScrollPosition.current = inventoryRef.current.scrollTop;
-    startMousePosition.current = e.touches[0].clientY;
-  };
-
-  const handleTouchMove = (e) => {
-    if (isDragging) {
-      const delta = startMousePosition.current - e.touches[0].clientY;
-      inventoryRef.current.scrollTop = startScrollPosition.current + delta;
-    }
-  };
-
-  const handleTouchEnd = () => {
-    setIsDragging(false);
   };
 
   return (
@@ -269,14 +321,15 @@ export default function Home() {
               px={2}
               flexWrap="nowrap" // Prevent wrapping
             >
-              <Box display="flex" alignItems="center" mx={1}>
+              <Box display="flex" alignItems="center" mx={0}>
                 <Button
                   variant="contained"
-                  startIcon={<CameraAlt />}
+                  startIcon={<CameraAlt/>}
                   onClick={handleCameraOpen}
-                  sx={{ bgcolor: "#4caf50", '&:hover': { bgcolor: "#388e3c" }, minWidth: '100px' }}
+                  sx={{ bgcolor: "#4caf50", '&:hover': { bgcolor: "#388e3c" }}}
+                  
                 >
-                  Camera
+                  Scan Item
                 </Button>
               </Box>
 
@@ -303,16 +356,17 @@ export default function Home() {
                     '& .MuiInput-underline:hover:not(.Mui-disabled):before': {
                       borderBottomColor: 'white',
                     },
-                    flexShrink: 1  // Allow it to shrink if needed
+                    flexShrink: 1,  // Allow it to shrink if needed
+                    minWidth: '100px',
                   }}
                 />
               </Box>
 
-              <Box display="flex" alignItems="center" mx={1}>
+              <Box display="flex" alignItems="center" ml={2}>
                 <Button
                   variant="contained"
                   onClick={handleOpen}
-                  sx={{ bgcolor: "#4caf50", '&:hover': { bgcolor: "#388e3c" }, minWidth: '100px' }}
+                  sx={{ bgcolor: "#4caf50", '&:hover': { bgcolor: "#388e3c" }, minWidth: '50px' }}
                 >
                   Add Item
                 </Button>
