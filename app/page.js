@@ -76,46 +76,21 @@ export default function Home() {
 
   const handleCameraOpen = () => {
     setCameraOpen(true);
-
-    // Try to access the back camera first
     navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { exact: "environment" } }
+      video: true, // More generic constraint
     })
     .then(stream => {
-        if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            
-            // Listen for the video element to be ready before playing
-            videoRef.current.onloadeddata = () => {
-                videoRef.current.play().catch(error => {
-                    console.error("Error playing video:", error);
-                });
-            };
-        }
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play();
+      }
     })
     .catch(err => {
-        console.error("Error accessing the back camera: ", err);
-        
-        //Fallback to the front camera or any available camera
-        return navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "user" }
-        });
-    })
-    .then(stream => {
-        if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.onloadeddata = () => {
-                videoRef.current.play().catch(error => {
-                    console.error("Error playing video:", error);
-                });
-            };
-        }
-    })
-    .catch(err => {
-        console.error("Final fallback error: ", err);
-        alert("Unable to access camera.");
+      console.error("Error accessing camera: ", err);
+      // Handle the error appropriately, potentially showing a user-friendly message
     });
-};
+  };
+  
 
 
   
